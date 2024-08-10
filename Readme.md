@@ -10,6 +10,11 @@
 - INFLUXDB_ORG= InfluxDB Organization: `TP`
 - INFLUXDB_BUCKET= InfluxDB Bucket
 - DELAY_SECS= Delay for each of the polling to the device
+- SWITCH_DEVICE_ID= Device ID from Tuya, for example: `eb7754...61x07h` 
+- SWITCH_LOCAL_KEY= Local key from Tuya, see [here](https://github.com/jasonacox/tinytuya). For example, `.CFc...iIBJ`
+- SWITCH_IP= Local IP address: `10.87.200.3`
+- SWITCH_DELAY= The interval of how switch is turn off
+- ERROR_THRESHOLD= The threshold of h~~~~ow many times it fails to retrieve data until power cycle
 
 ## Build command
 docker buildx build --platform linux/amd64 --tag dewnoibkk/tuya-monitor:latest --push .

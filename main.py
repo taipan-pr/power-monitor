@@ -7,18 +7,29 @@ from powerclamp import SolarPowerClamp, MainPowerClamp
 
 def create_device():
     name = os.getenv("METER_NAME")
+
     if name == "MAIN":
         return MainPowerClamp(name=name,
-                              device_id=os.getenv("METER_DEVICE_ID"),
+                              meter_id=os.getenv("METER_DEVICE_ID"),
                               key=os.getenv("METER_LOCAL_KEY"),
                               ip=os.getenv("METER_DEVICE_IP"),
-                              delay_seconds=int(os.getenv("DELAY_SECS")))
+                              delay_seconds=int(os.getenv("DELAY_SECS")),
+                              switch_ip=os.getenv("SWITCH_IP"),
+                              switch_id=os.getenv("SWITCH_DEVICE_ID"),
+                              switch_key=os.getenv("SWITCH_LOCAL_KEY"),
+                              error_threshold=int(os.getenv("ERROR_THRESHOLD")),
+                              switch_delay=int(os.getenv("SWITCH_DELAY")))
     elif name == "SOLAR":
         return SolarPowerClamp(name=name,
-                               device_id=os.getenv("METER_DEVICE_ID"),
+                               meter_id=os.getenv("METER_DEVICE_ID"),
                                key=os.getenv("METER_LOCAL_KEY"),
                                ip=os.getenv("METER_DEVICE_IP"),
-                               delay_seconds=int(os.getenv("DELAY_SECS")))
+                               delay_seconds=int(os.getenv("DELAY_SECS")),
+                               switch_ip=os.getenv("SWITCH_IP"),
+                               switch_id=os.getenv("SWITCH_DEVICE_ID"),
+                               switch_key=os.getenv("SWITCH_LOCAL_KEY"),
+                               error_threshold=int(os.getenv("ERROR_THRESHOLD")),
+                               switch_delay=int(os.getenv("SWITCH_DELAY")))
 
 
 def process(influxdb):
@@ -30,7 +41,6 @@ def process(influxdb):
 
     while True:
         status = power_clamp.status()
-        print(status)
         power_clamp.publish_data(influxdb, status['dps'])
         time.sleep(power_clamp.delay_seconds)
 

@@ -4,28 +4,58 @@ import tinytuya
 
 
 class PowerClamp(ABC):
-    def __init__(self, name, device_id, key, ip, delay_seconds):
+    def __init__(self,
+                 name,
+                 meter_id,
+                 key,
+                 ip,
+                 delay_seconds,
+                 switch_id,
+                 switch_key,
+                 switch_ip,
+                 error_threshold,
+                 switch_delay):
+
         self.name = name
-        self.device_id = device_id
+        self.meter_id = meter_id
         self.key = key
         self.ip = ip
         self.delay_seconds = delay_seconds
+        self.error_threshold = error_threshold
+        self.switch_delay = switch_delay
 
-        self.__device = tinytuya.Device(
-            dev_id=self.device_id,
+        self.__device = tinytuya.OutletDevice(
+            dev_id=self.meter_id,
             address=self.ip,
             local_key=self.key,
-            version=3.4)
+            version=3.4
+        )
+
+        self.__switch = tinytuya.OutletDevice(
+            dev_id=switch_id,
+            address=switch_ip,
+            local_key=switch_key,
+            version=3.3
+        )
 
     def status(self):
         try:
+            error_count = 0
             while True:
                 data = self.__device.status()
                 if data and 'dps' in data:
                     return data
 
-                self.__device.heartbeat()
-                time.sleep(self.delay_seconds)
+                error_count += 1
+
+                if error_count < self.error_threshold:
+                    self.__device.heartbeat()
+                else:
+                    self.__switch.turn_off()
+                    time.sleep(self.switch_delay)
+                    self.__switch.turn_on()
+                    time.sleep(self.switch_delay)
+                    print('Power cycle')
 
         except:
             raise Exception(f"Failed to get status from {self.name}")
