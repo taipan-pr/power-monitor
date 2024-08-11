@@ -57,6 +57,8 @@ class PowerClamp(ABC):
                     time.sleep(self.switch_delay)
                     print('Power cycle')
 
+                time.sleep(self.delay_seconds)
+
         except:
             raise Exception(f"Failed to get status from {self.name}")
 
@@ -71,6 +73,9 @@ class PowerClamp(ABC):
 
 class MainPowerClamp(PowerClamp):
     def publish_data(self, influxdb, status):
+        if '101' not in status and '102' not in status:
+            return
+
         if status['102'] == 'FORWARD':
             influxdb.write({
                 'name': 'PowerClamp',
@@ -97,6 +102,9 @@ class MainPowerClamp(PowerClamp):
 
 class SolarPowerClamp(PowerClamp):
     def publish_data(self, influxdb, status):
+        if '101' not in status and '102' not in status:
+            return
+
         if status['102'] == 'FORWARD':
             influxdb.write({
                 'name': 'PowerClamp',
