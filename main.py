@@ -1,12 +1,12 @@
 import os
-import time
 from dotenv import find_dotenv, load_dotenv
 from influxclient import InfluxClient
 from powerclamp import SolarPowerClamp, MainPowerClamp
 
 
-def create_device():
+def create_device(influxdb):
     name = os.getenv("METER_NAME")
+    switch_enabled = os.getenv("SWITCH_ENABLED").lower() in ('True', 'true', 't', 'y', 'yes')
 
     if name == "MAIN":
         return MainPowerClamp(name=name,
@@ -18,7 +18,9 @@ def create_device():
                               switch_id=os.getenv("SWITCH_DEVICE_ID"),
                               switch_key=os.getenv("SWITCH_LOCAL_KEY"),
                               error_threshold=int(os.getenv("ERROR_THRESHOLD")),
-                              switch_delay=int(os.getenv("SWITCH_DELAY")))
+                              switch_delay=int(os.getenv("SWITCH_DELAY")),
+                              influxdb=influxdb,
+                              switch_enabled=switch_enabled)
     elif name == "SOLAR":
         return SolarPowerClamp(name=name,
                                meter_id=os.getenv("METER_DEVICE_ID"),
@@ -29,20 +31,19 @@ def create_device():
                                switch_id=os.getenv("SWITCH_DEVICE_ID"),
                                switch_key=os.getenv("SWITCH_LOCAL_KEY"),
                                error_threshold=int(os.getenv("ERROR_THRESHOLD")),
-                               switch_delay=int(os.getenv("SWITCH_DELAY")))
+                               switch_delay=int(os.getenv("SWITCH_DELAY")),
+                               influxdb=influxdb,
+                               switch_enabled=switch_enabled)
 
 
 def process(influxdb):
-    power_clamp = create_device()
+    power_clamp = create_device(influxdb)
 
     if power_clamp is None:
         print("Device not found")
         return False
 
-    while True:
-        status = power_clamp.status()
-        power_clamp.publish_data(influxdb, status['dps'])
-        time.sleep(power_clamp.delay_seconds)
+    power_clamp.status()
 
 
 def main():

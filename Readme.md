@@ -10,6 +10,7 @@
 - INFLUXDB_ORG= InfluxDB Organization: `TP`
 - INFLUXDB_BUCKET= InfluxDB Bucket
 - DELAY_SECS= Delay for each of the polling to the device
+- SWITCH_ENABLED= Allow to power cycle 
 - SWITCH_DEVICE_ID= Device ID from Tuya, for example: `eb7754...61x07h` 
 - SWITCH_LOCAL_KEY= Local key from Tuya, see [here](https://github.com/jasonacox/tinytuya). For example, `.CFc...iIBJ`
 - SWITCH_IP= Local IP address: `10.87.200.3`

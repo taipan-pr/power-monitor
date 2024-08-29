@@ -14,7 +14,9 @@ class PowerClamp(ABC):
                  switch_key,
                  switch_ip,
                  error_threshold,
-                 switch_delay):
+                 switch_delay,
+                 influxdb,
+                 switch_enabled):
 
         self.name = name
         self.meter_id = meter_id
@@ -23,6 +25,8 @@ class PowerClamp(ABC):
         self.delay_seconds = delay_seconds
         self.error_threshold = error_threshold
         self.switch_delay = switch_delay
+        self.influxdb = influxdb
+        self.switch_enabled = switch_enabled
 
         self.__device = tinytuya.OutletDevice(
             dev_id=self.meter_id,
@@ -40,17 +44,27 @@ class PowerClamp(ABC):
 
     def status(self):
         try:
+            current_data = None
             error_count = 0
             while True:
                 data = self.__device.status()
+
                 if data and 'dps' in data:
-                    return data
+                    current_data = data
+
+                    self.publish_data(data['dps'])
+
+                    time.sleep(self.delay_seconds)
+                    continue
+
+                if current_data and 'dps' in current_data:
+                    self.publish_data(current_data['dps'])
 
                 error_count += 1
 
                 if error_count < self.error_threshold:
                     self.__device.heartbeat()
-                else:
+                elif self.switch_enabled:
                     self.__switch.turn_off()
                     time.sleep(self.switch_delay)
                     self.__switch.turn_on()
@@ -67,33 +81,33 @@ class PowerClamp(ABC):
         self.__device.send(payload)
 
     @abstractmethod
-    def publish_data(self, influxdb, status):
+    def publish_data(self, status):
         pass
 
 
 class MainPowerClamp(PowerClamp):
-    def publish_data(self, influxdb, status):
+    def publish_data(self, status):
         if '101' not in status and '102' not in status:
             return
 
         if status['102'] == 'FORWARD':
-            influxdb.write({
+            self.influxdb.write({
                 'name': 'PowerClamp',
                 'type': 'ActivePowerA',
                 'value': status['101']
             })
-            influxdb.write({
+            self.influxdb.write({
                 'name': 'PowerClamp',
                 'type': 'ActivePowerC',
                 'value': 0
             })
         elif status['102'] == 'REVERSE':
-            influxdb.write({
+            self.influxdb.write({
                 'name': 'PowerClamp',
                 'type': 'ActivePowerA',
                 'value': 0
             })
-            influxdb.write({
+            self.influxdb.write({
                 'name': 'PowerClamp',
                 'type': 'ActivePowerC',
                 'value': status['101']
@@ -101,18 +115,18 @@ class MainPowerClamp(PowerClamp):
 
 
 class SolarPowerClamp(PowerClamp):
-    def publish_data(self, influxdb, status):
+    def publish_data(self, status):
         if '101' not in status and '102' not in status:
             return
 
         if status['102'] == 'FORWARD':
-            influxdb.write({
+            self.influxdb.write({
                 'name': 'PowerClamp',
                 'type': 'ActivePowerB',
                 'value': 0
             })
         elif status['102'] == 'REVERSE':
-            influxdb.write({
+            self.influxdb.write({
                 'name': 'PowerClamp',
                 'type': 'ActivePowerB',
                 'value': status['101']
