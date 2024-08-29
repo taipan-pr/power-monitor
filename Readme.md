@@ -15,7 +15,9 @@
 - SWITCH_LOCAL_KEY= Local key from Tuya, see [here](https://github.com/jasonacox/tinytuya). For example, `.CFc...iIBJ`
 - SWITCH_IP= Local IP address: `10.87.200.3`
 - SWITCH_DELAY= The interval of how switch is turn off
-- ERROR_THRESHOLD= The threshold of h~~~~ow many times it fails to retrieve data until power cycle
+- ERROR_THRESHOLD= The threshold of how many times it fails to retrieve data until power cycle
+- LINE_USERID= Line user id
+- LINE_ACCESS_TOKEN= Line access token
 
 ## Build command
 docker buildx build --platform linux/amd64 --tag dewnoibkk/tuya-monitor:latest --push .

@@ -1,30 +1,21 @@
+import os
 import time
 from abc import ABC, abstractmethod
 import tinytuya
 
+import line
+
 
 class PowerClamp(ABC):
-    def __init__(self,
-                 name,
-                 meter_id,
-                 key,
-                 ip,
-                 delay_seconds,
-                 switch_id,
-                 switch_key,
-                 switch_ip,
-                 error_threshold,
-                 switch_delay,
-                 influxdb,
-                 switch_enabled):
+    def __init__(self, name, influxdb, switch_enabled):
 
         self.name = name
-        self.meter_id = meter_id
-        self.key = key
-        self.ip = ip
-        self.delay_seconds = delay_seconds
-        self.error_threshold = error_threshold
-        self.switch_delay = switch_delay
+        self.meter_id = os.getenv("METER_DEVICE_ID")
+        self.key = os.getenv("METER_LOCAL_KEY")
+        self.ip = os.getenv("METER_DEVICE_IP")
+        self.delay_seconds = int(os.getenv("DELAY_SECS"))
+        self.error_threshold = int(os.getenv("ERROR_THRESHOLD"))
+        self.switch_delay = int(os.getenv("SWITCH_DELAY"))
         self.influxdb = influxdb
         self.switch_enabled = switch_enabled
 
@@ -36,9 +27,9 @@ class PowerClamp(ABC):
         )
 
         self.__switch = tinytuya.OutletDevice(
-            dev_id=switch_id,
-            address=switch_ip,
-            local_key=switch_key,
+            dev_id=os.getenv("SWITCH_DEVICE_ID"),
+            address=os.getenv("SWITCH_IP"),
+            local_key=os.getenv("SWITCH_LOCAL_KEY"),
             version=3.3
         )
 
@@ -58,19 +49,23 @@ class PowerClamp(ABC):
                     continue
 
                 if current_data and 'dps' in current_data:
+                    print('Could not get the status using previous data - ', current_data)
                     self.publish_data(current_data['dps'])
+
+                self.__device.heartbeat()
+
+                if not self.switch_enabled:
+                    time.sleep(self.delay_seconds)
+                    continue
 
                 error_count += 1
 
-                if error_count < self.error_threshold:
-                    self.__device.heartbeat()
-                elif self.switch_enabled:
+                if error_count > self.error_threshold:
                     self.__switch.turn_off()
                     time.sleep(self.switch_delay)
                     self.__switch.turn_on()
                     time.sleep(self.switch_delay)
                     print('Power cycle')
-                else:
                     error_count = 0
 
                 time.sleep(self.delay_seconds)
@@ -117,8 +112,25 @@ class MainPowerClamp(PowerClamp):
 
 
 class SolarPowerClamp(PowerClamp):
+    def __init__(self, name, influxdb, switch_enabled):
+        super().__init__(name, influxdb, switch_enabled)
+
+        self.__inverter_status = InverterStatus.NONE
+
     def publish_data(self, status):
         if '101' not in status and '102' not in status:
+            return
+
+        if self.__inverter_status != InverterStatus.MALFUNCTION and status['101'] == 0:
+            line.send_line_message("Inverter malfunction")
+            self.__inverter_status = InverterStatus.MALFUNCTION
+
+        if self.__inverter_status == InverterStatus.MALFUNCTION and status['101'] == 0:
+            self.influxdb.write({
+                'name': 'PowerClamp',
+                'type': 'ActivePowerB',
+                'value': 0
+            })
             return
 
         if status['102'] == 'FORWARD':
@@ -127,9 +139,26 @@ class SolarPowerClamp(PowerClamp):
                 'type': 'ActivePowerB',
                 'value': 0
             })
+
+            if self.__inverter_status != InverterStatus.STOPPED:
+                line.send_line_message('Inverter stopped')
+                self.__inverter_status = InverterStatus.STOPPED
+
         elif status['102'] == 'REVERSE':
             self.influxdb.write({
                 'name': 'PowerClamp',
                 'type': 'ActivePowerB',
                 'value': status['101']
             })
+
+            if self.__inverter_status != InverterStatus.WORKING:
+                line.send_line_message('Inverter working')
+                self.__inverter_status = InverterStatus.WORKING
+
+from enum import Enum
+
+class InverterStatus(Enum):
+    NONE = 0
+    STOPPED = 1
+    WORKING = 2
+    MALFUNCTION = 3

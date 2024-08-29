@@ -10,28 +10,10 @@ def create_device(influxdb):
 
     if name == "MAIN":
         return MainPowerClamp(name=name,
-                              meter_id=os.getenv("METER_DEVICE_ID"),
-                              key=os.getenv("METER_LOCAL_KEY"),
-                              ip=os.getenv("METER_DEVICE_IP"),
-                              delay_seconds=int(os.getenv("DELAY_SECS")),
-                              switch_ip=os.getenv("SWITCH_IP"),
-                              switch_id=os.getenv("SWITCH_DEVICE_ID"),
-                              switch_key=os.getenv("SWITCH_LOCAL_KEY"),
-                              error_threshold=int(os.getenv("ERROR_THRESHOLD")),
-                              switch_delay=int(os.getenv("SWITCH_DELAY")),
                               influxdb=influxdb,
                               switch_enabled=switch_enabled)
     elif name == "SOLAR":
         return SolarPowerClamp(name=name,
-                               meter_id=os.getenv("METER_DEVICE_ID"),
-                               key=os.getenv("METER_LOCAL_KEY"),
-                               ip=os.getenv("METER_DEVICE_IP"),
-                               delay_seconds=int(os.getenv("DELAY_SECS")),
-                               switch_ip=os.getenv("SWITCH_IP"),
-                               switch_id=os.getenv("SWITCH_DEVICE_ID"),
-                               switch_key=os.getenv("SWITCH_LOCAL_KEY"),
-                               error_threshold=int(os.getenv("ERROR_THRESHOLD")),
-                               switch_delay=int(os.getenv("SWITCH_DELAY")),
                                influxdb=influxdb,
                                switch_enabled=switch_enabled)
 
