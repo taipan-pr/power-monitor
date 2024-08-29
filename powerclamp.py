@@ -70,6 +70,8 @@ class PowerClamp(ABC):
                     self.__switch.turn_on()
                     time.sleep(self.switch_delay)
                     print('Power cycle')
+                else:
+                    error_count = 0
 
                 time.sleep(self.delay_seconds)
 
