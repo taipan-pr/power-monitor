@@ -24,7 +24,6 @@ class PowerClamp(ABC):
         self.error_threshold = int(os.getenv("ERROR_THRESHOLD"))
         self.switch_delay = int(os.getenv("SWITCH_DELAY"))
         self.influxdb = influxdb
-        self.switch_enabled = switch_enabled
         self.report_interval = int(os.getenv("REPORT_INTERVAL"))
         self.running = threading.Event()
         self.running.set()
@@ -36,12 +35,15 @@ class PowerClamp(ABC):
             version=3.4
         )
 
-        self.__switch = tinytuya.OutletDevice(
-            dev_id=os.getenv("SWITCH_DEVICE_ID"),
-            address=os.getenv("SWITCH_IP"),
-            local_key=os.getenv("SWITCH_LOCAL_KEY"),
-            version=3.3
-        )
+        self.switch_enabled = switch_enabled
+        self.__switch = None
+        if self.switch_enabled:
+            self.__switch = tinytuya.OutletDevice(
+                dev_id=os.getenv("SWITCH_DEVICE_ID"),
+                address=os.getenv("SWITCH_IP"),
+                local_key=os.getenv("SWITCH_LOCAL_KEY"),
+                version=3.3
+            )
 
     def report(self, data):
         while self.running.is_set():
