@@ -1,8 +1,13 @@
+import logging
 import os
 from dotenv import find_dotenv, load_dotenv
 from influxclient import InfluxClient
 from powerclamp import SolarPowerClamp, MainPowerClamp
 
+
+# Set up logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
 
 def create_device(influxdb):
     name = os.getenv("METER_NAME")
@@ -22,14 +27,14 @@ def process(influxdb):
     power_clamp = create_device(influxdb)
 
     if power_clamp is None:
-        print("Device not found")
+        logger.info("Device not found")
         return False
 
     power_clamp.status()
 
 
 def main():
-    print(f"Process start")
+    logger.info(f"Process start")
 
     # load environment variables
     dotenv_path = find_dotenv()

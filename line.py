@@ -1,6 +1,10 @@
+import logging
 import os
 import requests
 
+# Set up logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
 
 def send_line_message(message):
     url = 'https://api.line.me/v2/bot/message/push'
@@ -23,7 +27,7 @@ def send_line_message(message):
     response = requests.post(url, headers=headers, json=data)
 
     if response.status_code == 200:
-        print("Message sent successfully")
+        logger.info("Message sent successfully")
     else:
-        print(f"Failed to send message. Status code: {response.status_code}")
-        print(f"Response: {response.text}")
+        logger.info(f"Failed to send message. Status code: {response.status_code}")
+        logger.info(f"Response: {response.text}")

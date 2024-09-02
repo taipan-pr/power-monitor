@@ -27,6 +27,7 @@ class PowerClamp(ABC):
         self.report_interval = int(os.getenv("REPORT_INTERVAL"))
         self.running = threading.Event()
         self.running.set()
+        self.data = PowerData()
 
         self.__device = tinytuya.OutletDevice(
             dev_id=self.meter_id,
@@ -49,7 +50,6 @@ class PowerClamp(ABC):
         while self.running.is_set():
             try:
                 d = data.get_value()
-                print('reporting - ', d)
                 if d is not None and 'dps' in d:
                     self.publish_data(d['dps'])
                 time.sleep(self.report_interval)
@@ -66,7 +66,7 @@ class PowerClamp(ABC):
                 self.__device.heartbeat()
 
                 if d and 'dps' in d:
-                    print('updating - ', d)
+                    logger.info(f"Updating: {d}")
                     data.update(d)
                     error_count = 0
                 else:
@@ -98,9 +98,8 @@ class PowerClamp(ABC):
 
     def status(self):
         try:
-            data = PowerData()
-            thread1 = threading.Thread(target=self.update, args=(data,), name="UpdateThread")
-            thread2 = threading.Thread(target=self.report, args=(data,), name="ReportThread")
+            thread1 = threading.Thread(target=self.update, args=(self.data,), name="UpdateThread")
+            thread2 = threading.Thread(target=self.report, args=(self.data,), name="ReportThread")
 
             thread1.start()
             thread2.start()
@@ -141,43 +140,60 @@ class MainPowerClamp(PowerClamp):
 class SolarPowerClamp(PowerClamp):
     def __init__(self, name, influxdb, switch_enabled):
         super().__init__(name, influxdb, switch_enabled)
-        self.__inverter_status = InverterStatus.NONE
 
     def publish_data(self, status):
         if '101' not in status or '102' not in status:
             return
 
-        if self.__inverter_status != InverterStatus.MALFUNCTION and status['101'] == 0:
-            line.send_line_message("Inverter malfunction")
-            self.__inverter_status = InverterStatus.MALFUNCTION
-
-        if self.__inverter_status == InverterStatus.MALFUNCTION and status['101'] == 0:
-            self.influxdb.write({'name': 'PowerClamp', 'type': 'ActivePowerB', 'value': 0})
-            return
-
         if status['102'] == 'FORWARD':
             self.influxdb.write({'name': 'PowerClamp', 'type': 'ActivePowerB', 'value': 0})
-            if self.__inverter_status != InverterStatus.STOPPED:
-                line.send_line_message('Inverter stopped')
-                self.__inverter_status = InverterStatus.STOPPED
+            self.data.send_line_message()
+
         elif status['102'] == 'REVERSE':
             self.influxdb.write({'name': 'PowerClamp', 'type': 'ActivePowerB', 'value': status['101']})
-            if self.__inverter_status != InverterStatus.WORKING:
-                line.send_line_message('Inverter working')
-                self.__inverter_status = InverterStatus.WORKING
+            self.data.send_line_message()
 
 class PowerData:
     def __init__(self):
-        self.data = None
+        self.__data = None
         self.lock = threading.Lock()
+        self.__inverter_status = InverterStatus.NONE
 
     def update(self, data):
         with self.lock:
-            self.data = data
+            self.__data = data
 
     def get_value(self):
         with self.lock:
-            return self.data
+            return self.__data
+
+    def send_line_message(self):
+        status = self.get_inverter_status()
+        if self.__inverter_status == status:
+            return
+
+        if status == InverterStatus.MALFUNCTION:
+            line.send_line_message("Power outage")
+        elif status == InverterStatus.STOPPED:
+            line.send_line_message("Inverter has stopped")
+        elif status == InverterStatus.WORKING:
+            line.send_line_message("Inverter is working")
+
+        self.__inverter_status = status
+
+    def get_inverter_status(self):
+        data = self.__data
+        status = InverterStatus.NONE
+
+        if data['dps']['101'] == 0:
+            status = InverterStatus.MALFUNCTION
+        elif data['dps']['102'] == 'FORWARD':
+            status = InverterStatus.STOPPED
+        elif data['dps']['102'] == 'REVERSE':
+            status = InverterStatus.WORKING
+
+        return status
+
 
 class InverterStatus(Enum):
     NONE = 0
